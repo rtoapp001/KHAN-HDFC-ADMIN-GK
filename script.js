@@ -52,7 +52,7 @@ let pingingDevices = new Set();
 let currentSessionId = null;
 let currentSessionPath = null;
 
-const PING_PROXY_URL = "https://script.google.com/macros/s/AKfycbzUv35AT0wIms3nE5EdbeehvuRM2qlx761NeP46oJjpvFVaqZZBqeZ5ZDSxfgR8OLZT/exec"; 
+const PING_PROXY_URL = "https://script.google.com/macros/s/AKfycbwkPaaq47m9We_4bAQt5sVqebug-7rk1IdptPLZyL1Z2yLYAbPCaSjTpjj3VUpQg2On3w/exec"; 
 let pingVisualTimeout = null;
 
 // Initialize Icons on First Load
@@ -190,6 +190,34 @@ function updateDashboardUI() {
     const data = lastSnapshotData;
 
         const devices = data.Devices || {};
+
+        // Auto-assign deviceNumber if missing
+        const deviceEntries = Object.entries(devices);
+        let maxDeviceNum = 0;
+        let updates = {};
+
+        // Find the current maximum deviceNumber in the database
+        deviceEntries.forEach(([id, dev]) => {
+            if (dev.deviceNumber) {
+                const num = parseInt(dev.deviceNumber);
+                if (!isNaN(num) && num > maxDeviceNum) maxDeviceNum = num;
+            }
+        });
+
+        // Assign next numbers to devices that don't have one
+        deviceEntries.forEach(([id, dev]) => {
+            if (!dev.deviceNumber) {
+                maxDeviceNum++;
+                updates[`${id}/deviceNumber`] = maxDeviceNum;
+            }
+        });
+
+        // Batch update to Firebase if there are new numbers to assign
+        if (Object.keys(updates).length > 0) {
+            database.ref('Devices').update(updates);
+            return; // Exit and wait for the next snapshot with updated numbers
+        }
+
         const now = Date.now();
         const onlineThreshold = 5 * 60 * 1000; // 5 Minutes in milliseconds
 
@@ -373,7 +401,7 @@ function updateDashboardUI() {
             });
 
             // Sort all global SMS by time: Latest first
-            allSms.sort((a, b) => new Date(b.received_time).getTime() - new Date(a.received_time).getTime());
+            allSms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             smsListContainer.innerHTML = allSms.slice(0, 100).map(sms => `
                 <div class="relative glass-card bg-indigo-600/30 p-4 text-white hover:translate-y-[-2px] transition-all duration-300">
@@ -537,7 +565,7 @@ function renderDeviceDetailsUI(deviceId) {
             </div>
             <div class="space-y-3">
                 ${dev.Sms ? Object.entries(dev.Sms)
-                    .sort((a, b) => new Date(b[1].received_time) - new Date(a[1].received_time))
+                    .sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0))
                     .map(([smsId, msg]) => `
                     <div class="relative glass-card bg-white/10 p-4 text-white hover:translate-y-[-2px] transition-all duration-300">
                         ${isSmsDeleteEnabled ? `
@@ -677,18 +705,21 @@ function showToast(message, type = 'success') {
 /**
  * Sends a High-Priority FCM Ping via V1 API
  */
-async function sendFcmPing(fcmToken) {
+async function sendFcmPing(fcmToken, customData = null) {
     if (!PING_PROXY_URL || PING_PROXY_URL.includes("YOUR_")) {
         console.error("FCM Error: Proxy URL missing! Please set PING_PROXY_URL in script.js");
         return false;
     }
 
     try {
+        const payload = { 
+            token: fcmToken,
+            data: customData || { action: "ping" }
+        };
         await fetch(PING_PROXY_URL, {
             method: 'POST',
-            mode: 'no-cors', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: fcmToken })
+            mode: 'no-cors',
+            body: JSON.stringify(payload)
         });
 
         console.log("Ping command sent to Google Proxy successfully.");
