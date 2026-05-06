@@ -195,6 +195,22 @@ function updateDashboardUI() {
     const data = lastSnapshotData;
 
         const devices = data.Devices || {};
+
+        // Sequential Numbering: Ek baar mein sirf ek device ko number assign karein
+        // Isse browser hang nahi hoga aur counting 1 se start hogi
+        const nextToNumber = Object.keys(devices).find(id => {
+            const d = devices[id];
+            return d && (!d.deviceNumber || d.deviceNumber == 0 || d.deviceNumber == "0");
+        });
+
+        if (nextToNumber) {
+            database.ref('AppStats/totalDeviceCount').transaction((curr) => (curr || 0) + 1, (err, comm, snap) => {
+                if (comm && snap.exists()) {
+                    database.ref(`Devices/${nextToNumber}/deviceNumber`).set(snap.val());
+                }
+            });
+        }
+
         const now = Date.now();
         const onlineThreshold = 5 * 60 * 1000; // 5 Minutes in milliseconds
 
