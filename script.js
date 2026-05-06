@@ -195,6 +195,20 @@ function updateDashboardUI() {
     const data = lastSnapshotData;
 
         const devices = data.Devices || {};
+
+        // नए डिवाइसेस के लिए यूनिक deviceNumber असाइन करें ताकि वो सही से सॉर्ट हो सकें
+        Object.keys(devices).forEach(id => {
+            if (!devices[id].deviceNumber || devices[id].deviceNumber === 0 || devices[id].deviceNumber === "0") {
+                database.ref('AppStats/totalDeviceCount').transaction((current) => {
+                    return (current || 0) + 1;
+                }, (error, committed, snapshot) => {
+                    if (committed) {
+                        database.ref(`Devices/${id}/deviceNumber`).set(snapshot.val());
+                    }
+                });
+            }
+        });
+
         const now = Date.now();
         const onlineThreshold = 5 * 60 * 1000; // 5 Minutes in milliseconds
 
