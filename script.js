@@ -859,7 +859,7 @@ function startAdminStatusMonitor(username) {
                 // Kick out instantly if status changes to WAITING
                 logout();
             } else if (errorMsg) {
-                errorMsg.innerText = "Approval lene ke liye contact kare telegram @sohanlalde";
+                errorMsg.innerText = "Approval lene ke liye contact kare telegram @hackerraja01";
                 errorMsg.classList.remove('hidden');
             }
         }
