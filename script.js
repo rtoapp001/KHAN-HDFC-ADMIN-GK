@@ -119,6 +119,13 @@ function checkSubscriptionValidity() {
 function showSubscriptionExpiredPopup() {
     const popup = document.getElementById('subscription-expired-modal');
     if (popup) {
+        // On mobile, blur focused inputs so keyboard closes and the overlay becomes visible
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
+        window.scrollTo(0, 0);
+        popup.style.display = 'flex';
+        popup.style.zIndex = '9999';
         popup.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overscrollBehaviorY = 'none';
@@ -129,6 +136,8 @@ function hideSubscriptionExpiredPopup() {
     const popup = document.getElementById('subscription-expired-modal');
     if (popup) {
         popup.classList.add('hidden');
+        popup.style.display = '';
+        popup.style.zIndex = '';
         document.body.style.overflow = '';
         document.documentElement.style.overscrollBehaviorY = '';
     }
